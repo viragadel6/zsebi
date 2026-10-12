@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zsebibaba</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; background: #000; color: #f5f5f7; overflow-x: hidden; position: relative; min-height: 100vh; }
+        #bg-video { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; width: auto; height: auto; z-index: -100; object-fit: cover; filter: blur(12px) brightness(0.7); }
+        header { position: absolute; top: 0; left: 0; right: 0; text-align: center; padding: 2.5rem 0; z-index: 10; }
+        h1 { font-size: 4rem; font-weight: 700; letter-spacing: -0.05em; color: #fff; }
+        .container { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; gap: 2rem; }
+        .glass-card { background: rgba(28, 28, 30, 0.75); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border-radius: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3); width: 18rem; min-height: 18rem; padding: 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .glass-card h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.75rem; }
+        .glass-card p { font-size: 1.125rem; font-weight: 500; color: #d1d1d6; margin-bottom: 1.25rem; }
+        .button-primary { border: none; cursor: pointer; transition: transform 0.2s, background-color 0.2s; font-size: 1rem; outline: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; font-weight: 500; border-radius: 9999px; color: #fff; background: #0a84ff; padding: 0.875rem 1.75rem; }
+        .button-primary:hover { transform: scale(1.05); background: #359aff; }
+        .button-primary:active { transform: scale(0.98); }
+        .pay-area { width: 100%; overflow: hidden; }
+        .pay-status { font-size: 1rem; font-weight: 500; color: #d1d1d6; }
+        .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 50; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .modal.active { opacity: 1; visibility: visible; }
+        .modal-content { background: rgba(28, 28, 30, 0.75); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border-radius: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3); width: 100%; max-width: 32rem; padding: 2rem; animation: modalFadeIn 0.3s ease forwards; }
+        @keyframes modalFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .modal-header h3 { font-size: 1.5rem; font-weight: 700; }
+        .close-btn { background: none; border: none; color: #8e8e93; cursor: pointer; font-size: 2rem; line-height: 1; padding: 0; width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; transition: color 0.2s; outline: none; -webkit-tap-highlight-color: transparent; }
+        .close-btn:hover { color: #fff; }
+        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .calendar-nav button { background: none; border: none; color: #f5f5f7; cursor: pointer; padding: 0.5rem; border-radius: 9999px; transition: background 0.2s; outline: none; -webkit-tap-highlight-color: transparent; }
+        .calendar-nav button:hover { background: rgba(255, 255, 255, 0.1); }
+        .calendar-nav button svg { width: 1.5rem; height: 1.5rem; }
+        .calendar-nav h4 { font-size: 1.125rem; font-weight: 600; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; }
+        .weekday, .calendar-day { display: flex; justify-content: center; align-items: center; aspect-ratio: 1/1; }
+        .weekday { font-weight: 500; font-size: 0.8rem; color: rgba(235, 235, 245, 0.6); }
+        .calendar-day { cursor: pointer; border-radius: 9999px; transition: background-color 0.2s, color 0.2s, transform 0.2s; outline: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .calendar-day:not(.disabled):not(.empty):hover { background: rgba(255, 255, 255, 0.1); transform: scale(1.05); }
+        .calendar-day:not(.disabled):not(.empty):active { transform: scale(0.98); }
+        .calendar-day.empty { cursor: default; }
+        .calendar-day.disabled { color: rgba(235, 235, 245, 0.3); cursor: not-allowed; }
+        .calendar-day.selected { background: #0a84ff; color: #fff; font-weight: 600; transform: scale(1.1); }
+        .time-slots-container { margin-top: 1.5rem; display: none; }
+        .time-slots-container.active { display: block; }
+        .time-slots-container h4 { font-weight: 600; margin-bottom: 0.75rem; font-size: 1.125rem; }
+        .time-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+        .time-slot { cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s; border: 1px solid rgba(255, 255, 255, 0.2); text-align: center; padding: 0.5rem; border-radius: 0.5rem; outline: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .time-slot:hover { background: rgba(255, 255, 255, 0.1); }
+        .time-slot:active { transform: scale(0.98); }
+        .time-slot.selected { background: #0a84ff; border-color: #0a84ff; color: #fff; }
+        .booking-pay { margin-top: 1.5rem; width: 100%; }
+        .booking-pay[hidden] { display: none; }
+        .booking-total { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.75rem; }
+        @media(min-width:640px) { h1 { font-size: 4.5rem; } .time-slots { grid-template-columns: repeat(4, 1fr); } }
+    </style>
+</head>
+<body>
+    <video autoplay muted loop playsinline webkit-playsinline id="bg-video">
+        <source src="https://zsebibabakutya.univer.se/_api/v1/videos/321224/stream" type="video/mp4">
+    </video>
+    <header>
+        <h1>Zsebibaba</h1>
+    </header>
+    <div class="container">
+        <button type="button" class="button-primary" id="open-calendar-btn">Időpontfoglalás</button>
+        <div class="glass-card">
+            <h2>Kis csomag</h2>
+            <p id="small-package-total">—</p>
+            <div class="pay-area" id="small-package-pay-area"></div>
+            <p class="pay-status" id="small-package-status">Fizetés előkészítése…</p>
+        </div>
+    </div>
+    <div class="modal" id="booking-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Időpontfoglalás</h3>
+                <button type="button" class="close-btn" id="close-booking-modal-btn" aria-label="Bezárás">×</button>
+            </div>
+            <div>
+                <div class="calendar-nav">
+                    <button type="button" id="prev-month-btn" aria-label="Előző hónap"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                    <h4 id="current-month-year"></h4>
+                    <button type="button" id="next-month-btn" aria-label="Következő hónap"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                </div>
+                <div class="calendar-grid">
+                    <div class="weekday">H</div><div class="weekday">K</div><div class="weekday">Sze</div><div class="weekday">Cs</div><div class="weekday">P</div><div class="weekday">Szo</div><div class="weekday">V</div>
+                </div>
+                <div class="calendar-grid" id="calendar-days"></div>
+            </div>
+            <div class="time-slots-container" id="time-slots-container">
+                <h4>Válassz időpontot:</h4>
+                <div class="time-slots" id="time-slots"></div>
+            </div>
+            <div class="booking-pay" id="booking-pay" hidden>
+                <p class="booking-total" id="booking-total">—</p>
+                <div class="pay-area" id="booking-pay-area"></div>
+                <p class="pay-status" id="booking-status">Fizetés előkészítése…</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const bookingModal = document.getElementById('booking-modal');
+            const openCalendarBtn = document.getElementById('open-calendar-btn');
+            const closeBookingBtn = document.getElementById('close-booking-modal-btn');
+            const bookingPayEl = document.getElementById('booking-pay');
+
+            const productConfigs = {
+                smallPackage: {
+                    key: 'smallPackage',
+                    price: document.getElementById('small-package-total'),
+                    message: document.getElementById('small-package-status'),
+                    mount: document.getElementById('small-package-pay-area')
+                },
+                booking: {
+                    key: 'booking',
+                    price: document.getElementById('booking-total'),
+                    message: document.getElementById('booking-status'),
+                    mount: document.getElementById('booking-pay-area')
+                }
+            };
+
+            const applePayAvailable = !!(window.ApplePaySession && typeof window.ApplePaySession.canMakePayments === 'function' && window.ApplePaySession.canMakePayments());
+            const mountedSignatures = { smallPackage: '', booking: '' };
+            let lastState = { smallPackage: null, booking: null };
+
+            function formatTotal(value) {
+                return typeof value === 'number' && isFinite(value) ? value.toFixed(2) + ' EUR' : '—';
+            }
+
+            function fitPayArea(container, button) {
+                const wrap = container.firstElementChild;
+                if (!wrap || !button) return;
+                const containerWidth = container.clientWidth;
+                wrap.style.transform = '';
+                wrap.style.transformOrigin = '';
+                wrap.style.margin = '';
+                wrap.style.marginBottom = '';
+                if (containerWidth <= 0) return;
+                if (button.width > containerWidth) {
+                    const scale = containerWidth / button.width;
+                    wrap.style.transform = 'scale(' + scale + ')';
+                    wrap.style.transformOrigin = 'top left';
+                    wrap.style.marginBottom = -(button.height * (1 - scale)) + 'px';
+                } else {
+                    wrap.style.margin = '0 auto';
+                }
+            }
+
+            function mountPayArea(config, product) {
+                const button = product.button;
+                const viewport = product.viewport;
+                const mountTime = Date.now();
+                const wrap = document.createElement('div');
+                wrap.className = 'pay-wrap';
+                wrap.style.width = button.width + 'px';
+                wrap.style.height = button.height + 'px';
+                wrap.style.overflow = 'hidden';
+                wrap.style.position = 'relative';
+                wrap.style.borderRadius = '12px';
+                const iframe = document.createElement('iframe');
+                iframe.setAttribute('src', product.url);
+                iframe.setAttribute('allow', 'payment');
+                iframe.setAttribute('title', 'Apple Pay');
+                iframe.style.position = 'absolute';
+                iframe.style.left = -button.x + 'px';
+                iframe.style.top = -button.y + 'px';
+                iframe.style.width = viewport.width + 'px';
+                iframe.style.height = viewport.docHeight + 'px';
+                iframe.style.border = '0';
+                iframe.addEventListener('load', () => {
+                    if (Date.now() - mountTime < 10000) return;
+                    fetch('/api/consumed/' + config.key, { method: 'POST' }).catch(() => {});
+                });
+                wrap.appendChild(iframe);
+                config.mount.appendChild(wrap);
+                fitPayArea(config.mount, button);
+            }
+
+            function applyProductState(config, product) {
+                config.price.textContent = formatTotal(product ? product.totalEur : null);
+                if (!applePayAvailable) {
+                    if (mountedSignatures[config.key] !== '') {
+                        mountedSignatures[config.key] = '';
+                        config.mount.innerHTML = '';
+                    }
+                    config.mount.style.display = 'none';
+                    config.message.textContent = 'Az Apple Pay csak Apple eszközön érhető el.';
+                    config.message.style.display = '';
+                    return;
+                }
+                const live = !!(product && product.status === 'live' && product.url && product.button && product.viewport);
+                const signature = live ? product.url + '|' + JSON.stringify(product.button) + '|' + JSON.stringify(product.viewport) : '';
+                if (signature !== mountedSignatures[config.key]) {
+                    mountedSignatures[config.key] = signature;
+                    config.mount.innerHTML = '';
+                    config.mount.style.display = live ? '' : 'none';
+                    if (live) mountPayArea(config, product);
+                } else {
+                    config.mount.style.display = live ? '' : 'none';
+                }
+                if (live) {
+                    config.message.style.display = 'none';
+                } else {
+                    config.message.textContent = 'Fizetés előkészítése…';
+                    config.message.style.display = '';
+                }
+            }
+
+            function applyState(data) {
+                if (!data) return;
+                lastState = { smallPackage: data.smallPackage || null, booking: data.booking || null };
+                applyProductState(productConfigs.smallPackage, lastState.smallPackage);
+                applyProductState(productConfigs.booking, lastState.booking);
+            }
+
+            async function fetchState() {
+                try {
+                    const response = await fetch('/api/state', { cache: 'no-store' });
+                    if (!response.ok) return;
+                    applyState(await response.json());
+                } catch (err) {}
+            }
+
+            setInterval(fetchState, 2000);
+            fetchState();
+
+            window.addEventListener('resize', () => {
+                if (lastState.smallPackage && lastState.smallPackage.button) fitPayArea(productConfigs.smallPackage.mount, lastState.smallPackage.button);
+                if (lastState.booking && lastState.booking.button) fitPayArea(productConfigs.booking.mount, lastState.booking.button);
+            });
+
+            let currentDate = new Date();
+            currentDate.setDate(1);
+            let selectedDate = null;
+            let selectedTime = null;
+            const availableTimeSlots = ['10:00', '11:00', '14:00', '15:00', '16:00', '18:00'];
+            const prevMonthBtn = document.getElementById('prev-month-btn');
+            const nextMonthBtn = document.getElementById('next-month-btn');
+            const monthYearEl = document.getElementById('current-month-year');
+            const calendarDaysEl = document.getElementById('calendar-days');
+            const timeSlotsContainer = document.getElementById('time-slots-container');
+            const timeSlotsEl = document.getElementById('time-slots');
+
+            function renderCalendar() {
+                const now = new Date();
+                now.setHours(0, 0, 0, 0);
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                monthYearEl.textContent = year + '. ' + new Intl.DateTimeFormat('hu-HU', { month: 'long' }).format(currentDate);
+                calendarDaysEl.innerHTML = '';
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                let firstDayIndex = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+                for (let i = 0; i < firstDayIndex; i++) {
+                    const emptyEl = document.createElement('div');
+                    emptyEl.className = 'calendar-day empty';
+                    calendarDaysEl.appendChild(emptyEl);
+                }
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayDate = new Date(year, month, day);
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'calendar-day';
+                    dayEl.textContent = day;
+                    if (dayDate < now) {
+                        dayEl.classList.add('disabled');
+                    } else {
+                        dayEl.addEventListener('click', () => {
+                            selectedDate = (selectedDate && selectedDate.toDateString() === dayDate.toDateString()) ? null : dayDate;
+                            selectedTime = null;
+                            updateSelection();
+                        });
+                    }
+                    if (selectedDate && dayDate.toDateString() === selectedDate.toDateString()) {
+                        dayEl.classList.add('selected');
+                    }
+                    calendarDaysEl.appendChild(dayEl);
+                }
+                updateSelection();
+            }
+
+            function renderTimeSlots() {
+                if (selectedDate) {
+                    timeSlotsContainer.classList.add('active');
+                } else {
+                    timeSlotsContainer.classList.remove('active');
+                    return;
+                }
+                timeSlotsEl.innerHTML = '';
+                availableTimeSlots.forEach(time => {
+                    const slotEl = document.createElement('div');
+                    slotEl.className = 'time-slot';
+                    slotEl.textContent = time;
+                    slotEl.addEventListener('click', () => {
+                        selectedTime = (selectedTime === time) ? null : time;
+                        updateSelection();
+                    });
+                    if (selectedTime === time) {
+                        slotEl.classList.add('selected');
+                    }
+                    timeSlotsEl.appendChild(slotEl);
+                });
+            }
+
+            function updateSelection() {
+                document.querySelectorAll('#calendar-days .calendar-day').forEach(el => el.classList.remove('selected'));
+                if (selectedDate && selectedDate.getFullYear() === currentDate.getFullYear() && selectedDate.getMonth() === currentDate.getMonth()) {
+                    const dayEls = Array.from(calendarDaysEl.children).filter(c => !c.classList.contains('empty'));
+                    const el = dayEls[selectedDate.getDate() - 1];
+                    if (el) el.classList.add('selected');
+                }
+                renderTimeSlots();
+                document.querySelectorAll('.time-slot').forEach(el => {
+                    el.classList.toggle('selected', selectedTime === el.textContent);
+                });
+                const readyToPay = !!(selectedDate && selectedTime);
+                bookingPayEl.hidden = !readyToPay;
+                if (readyToPay && lastState.booking && lastState.booking.button) {
+                    requestAnimationFrame(() => {
+                        if (lastState.booking && lastState.booking.button) {
+                            fitPayArea(productConfigs.booking.mount, lastState.booking.button);
+                        }
+                    });
+                }
+            }
+
+            function closeModal() {
+                bookingModal.classList.remove('active');
+            }
+
+            openCalendarBtn.addEventListener('click', () => {
+                renderCalendar();
+                bookingModal.classList.add('active');
+            });
+            closeBookingBtn.addEventListener('click', closeModal);
+            bookingModal.addEventListener('click', e => { if (e.target === bookingModal) closeModal(); });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && bookingModal.classList.contains('active')) {
+                    closeModal();
+                }
+            });
+            prevMonthBtn.addEventListener('click', () => {
+                currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+                renderCalendar();
+            });
+            nextMonthBtn.addEventListener('click', () => {
+                currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+                renderCalendar();
+            });
+        });
+    </script>
+</body>
+</html>
